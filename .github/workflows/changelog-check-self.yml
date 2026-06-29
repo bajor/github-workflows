@@ -1,0 +1,13 @@
+name: Changelog Check
+
+on:
+  workflow_call:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  changelog:
+    uses: ./.github/workflows/changelog-check.yml

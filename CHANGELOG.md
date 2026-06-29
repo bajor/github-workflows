@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- Added reusable workflow triggers to every shared workflow.
+- Added reusable workflow triggers to every shared workflow and run the changelog check through a repo-local reusable workflow caller.
 
 ## [0.1] - 2026-06-29
 
