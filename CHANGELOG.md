@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.2] - 2026-07-10
+
+### Added
+
+- Added a reusable secret and sensitive data scanning workflow.
+
 ## [0.1.1] - 2026-06-29
 
 ### Fixed
