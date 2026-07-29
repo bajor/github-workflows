@@ -1,0 +1,95 @@
+name: Python Coverage
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: Python version used to run the tests.
+        required: false
+        type: string
+        default: "3.12"
+      working-directory:
+        description: Directory containing the Python project.
+        required: false
+        type: string
+        default: .
+      install-command:
+        description: Trusted shell command that installs the project and its test dependencies.
+        required: false
+        type: string
+        default: python -m pip install -e ".[test]"
+      coverage-source:
+        description: Package or source directory measured by pytest-cov.
+        required: true
+        type: string
+      minimum-coverage:
+        description: Minimum raw total coverage percentage required to pass.
+        required: false
+        type: number
+        default: 80
+      test-path:
+        description: Test file or directory passed to pytest.
+        required: false
+        type: string
+        default: tests
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: Enforce Minimum Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Install dependencies
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          ${{ inputs.install-command }}
+          python -m pip install "pytest-cov==7.1.0"
+
+      - name: Run tests with coverage
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          COVERAGE_SOURCE: ${{ inputs.coverage-source }}
+          MINIMUM_COVERAGE: ${{ inputs.minimum-coverage }}
+          TEST_PATH: ${{ inputs.test-path }}
+        run: |
+          coverage_json="$RUNNER_TEMP/coverage.json"
+          python -m pytest "$TEST_PATH" \
+            --cov="$COVERAGE_SOURCE" \
+            --cov-precision=2 \
+            --cov-report=term-missing \
+            "--cov-report=markdown-append:${GITHUB_STEP_SUMMARY}" \
+            "--cov-report=json:${coverage_json}"
+
+          python - "$coverage_json" "$MINIMUM_COVERAGE" <<'PY'
+          import json
+          import sys
+          from decimal import Decimal
+
+          report_path = sys.argv[1]
+          required = Decimal(sys.argv[2])
+          if not Decimal("0") <= required <= Decimal("100"):
+              print(f"::error::minimum-coverage must be between 0 and 100, got {required}.")
+              raise SystemExit(1)
+
+          with open(report_path, encoding="utf-8") as report:
+              value = json.load(report, parse_float=Decimal)["totals"]["percent_covered"]
+          actual = Decimal(str(value))
+
+          if actual < required:
+              print(f"::error::Coverage {actual}% is below required {required}%.")
+              raise SystemExit(1)
+          print(f"Coverage {actual}% meets required {required}%.")
+          PY

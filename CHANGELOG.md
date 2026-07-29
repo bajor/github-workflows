@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0] - 2026-07-29
+
+### Added
+
+- Added a reusable Python mutation testing workflow that reports and rejects surviving or inconclusive mutants.
+- Added a reusable Python coverage workflow with a caller-defined minimum coverage threshold.
+
 ## [0.1.2] - 2026-07-10
 
 ### Added
