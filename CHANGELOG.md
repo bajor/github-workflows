@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.0] - 2026-07-30
+
+### Added
+
+- Added a reusable real PyPI publishing workflow for Python packages.
+
 ## [0.2.0] - 2026-07-29
 
 ### Added
