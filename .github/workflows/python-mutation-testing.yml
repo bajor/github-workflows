@@ -81,17 +81,22 @@ jobs:
             echo "## Python mutation testing"
             echo
             if [ -s "$survivors_file" ]; then
-              echo "### Survived mutants"
+              survivors_count="$(wc -l < "$survivors_file" | tr -d ' ')"
+              echo "### Action required: ${survivors_count} survived mutant(s)"
               echo
-              echo "The tests still passed after these code changes:"
+              echo "A survived mutant means the production code was changed by mutmut and the test suite still passed. For each mutant below, use the listed test output and source diff to decide the next code review action."
               echo
-              echo '```text'
-              cat "$survivors_file"
-              echo '```'
+              echo "Use this decision rule:"
+              echo
+              echo "1. If listed tests already cover this behavior, strengthen their assertions so the shown source change fails."
+              echo "2. If no useful test is listed, create a focused test for the behavior changed in the source diff."
+              echo "3. If the source diff is behaviorally equivalent or changes dead code, remove/refactor the production code or add a narrowly scoped \`# pragma: no mutate\` with a comment explaining why no test can distinguish it."
               echo
             fi
             if [ -s "$incomplete_file" ]; then
               echo "### Mutants without a conclusive result"
+              echo
+              echo "These mutants did not finish as killed, caught by type checking, or survived. Inspect timeout, crash, and environment behavior before trusting this run."
               echo
               echo '```text'
               cat "$incomplete_file"
@@ -103,15 +108,68 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
+          survivor_number=0
           while IFS= read -r result; do
+            survivor_number=$((survivor_number + 1))
             mutant="${result%: survived}"
-            echo "::error title=Survived mutant::$mutant"
-            echo "::group::Tests and code change for $mutant"
-            echo "Tests that passed for this mutant:"
-            mutmut tests-for-mutant "$mutant"
+            tests_file="$RUNNER_TEMP/mutmut-${survivor_number}-tests.txt"
+            diff_file="$RUNNER_TEMP/mutmut-${survivor_number}-diff.txt"
+            test_sources_file="$RUNNER_TEMP/mutmut-${survivor_number}-test-sources.txt"
+
+            if ! mutmut tests-for-mutant "$mutant" > "$tests_file" 2>&1; then
+              echo "Could not read tests for this mutant." >> "$tests_file"
+            fi
+            if ! mutmut show "$mutant" > "$diff_file" 2>&1; then
+              echo "Could not read source diff for this mutant." >> "$diff_file"
+            fi
+            grep -Eo '(^|[[:space:]])[^[:space:]]*test[^[:space:]]*\.py(::[^[:space:]]*)?' "$tests_file" \
+              | sed 's/^[[:space:]]*//; s/::.*//' \
+              | sort -u > "$test_sources_file" || true
+
+            {
+              echo "### Survived mutant ${survivor_number}: \`$mutant\`"
+              echo
+              echo "#### What survived"
+              echo
+              echo "The source code was mutated as shown below, but the test suite still passed. The changed lines are the behavior your tests failed to reject."
+              echo
+              echo '```diff'
+              cat "$diff_file"
+              echo '```'
+              echo
+              echo "#### Tests mutmut associates with this mutant"
+              echo
+              echo "Start with these tests when deciding what to modify. If this list is empty or only shows broad test files, create a smaller focused test for the mutated behavior instead of weakening production code."
+              echo
+              echo '```text'
+              cat "$tests_file"
+              echo '```'
+              echo
+              if [ -s "$test_sources_file" ]; then
+                echo "#### Test source files to inspect or edit"
+                echo
+                echo "These links point to the test files mutmut associated with this survived mutant at the exact commit tested by this workflow run."
+                echo
+                while IFS= read -r test_source; do
+                  if [ -f "$test_source" ]; then
+                    echo "- [\`$test_source\`]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/$test_source)"
+                  fi
+                done < "$test_sources_file"
+                echo
+              fi
+              echo "#### Recommended next action"
+              echo
+              echo "Make the smallest change that makes this exact mutation fail: strengthen an existing assertion, add a missing edge-case test, or remove/refactor equivalent/dead production code. Do not delete a test only because a mutant survived; delete or rewrite a test only when the listed test asserts the wrong behavior."
+              echo
+            } >> "$GITHUB_STEP_SUMMARY"
+
+            echo "::error title=Survived mutant ${survivor_number}::$mutant. Open the job summary for the source diff, related tests, and recommended action."
+            echo "::group::Survived mutant ${survivor_number}: $mutant"
+            echo "Tests mutmut associates with this mutant:"
+            cat "$tests_file"
             echo
-            echo "Code change not detected by the tests:"
-            mutmut show "$mutant"
+            echo "Source code change not detected by tests:"
+            cat "$diff_file"
             echo "::endgroup::"
           done < "$survivors_file"
 
