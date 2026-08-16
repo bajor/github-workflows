@@ -2,6 +2,17 @@ name: Delete Visual Explanation SVGs
 
 on:
   workflow_call:
+    secrets:
+      # Required caller setup:
+      # 1. Create a fine-grained PAT owned by a GitHub user.
+      # 2. Give the PAT access to the caller repository.
+      # 3. Give the PAT repository permission: Contents: Read and write.
+      # 4. Add the PAT owner, not github-actions[bot], to the caller repository's
+      #    main-branch ruleset bypass list if that ruleset blocks direct pushes.
+      # 5. Store the PAT in the caller repository as an Actions secret named
+      #    REMOVE_VISUALS_MAIN and pass it to this reusable workflow.
+      REMOVE_VISUALS_MAIN:
+        required: true
   push:
     branches: [main]
 
@@ -15,6 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.REMOVE_VISUALS_MAIN }}
 
       - name: Delete visual explanation SVGs
         run: |

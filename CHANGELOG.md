@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1] - 2026-08-16
+
+### Fixed
+
+- Visual explanation SVG cleanup now requires a caller-provided `REMOVE_VISUALS_MAIN` token so cleanup pushes can authenticate as a ruleset bypass user instead of `github-actions[bot]`.
+
 ## [0.2.0] - 2026-07-29
 
 ### Added
