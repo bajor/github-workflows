@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.2] - 2026-09-30
+
+### Changed
+
+- The reusable release workflow now creates GitHub Releases for valid patch versions such as `0.12.1`.
+
 ## [0.2.1] - 2026-08-16
 
 ### Fixed

@@ -38,13 +38,9 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
-          # Release versions are X.Y and X.Y.0 (e.g., 0.11, 0.12.0).
-          # Patch versions are X.Y.Z where Z > 0 (e.g., 0.11.1).
-          if echo "$version" | grep -Eq '^[0-9]+\.[0-9]+(\.0)?$'; then
+          # Release versions are X.Y or X.Y.Z (e.g., 0.11, 0.12.0, 0.12.1).
+          if echo "$version" | grep -Eq '^[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
             echo "is_release=true" >> "$GITHUB_OUTPUT"
-          elif echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "is_release=false" >> "$GITHUB_OUTPUT"
-            echo "Patch version detected — will tag but skip GitHub Release."
           else
             echo "is_release=false" >> "$GITHUB_OUTPUT"
             echo "::warning::Unrecognized version format '$version' — will skip GitHub Release."
