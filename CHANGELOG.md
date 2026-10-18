@@ -9,7 +9,8 @@
 
 ### Fixed
 
-- Clean bot-merged artifacts without relying on an actor-based recursion guard.
+- Allow cleanup runs triggered by bots using PATs, without an actor-based exemption.
+- Limit Raccoon deletions to catalog-listed PRs and reject symlink catalogs and roots.
 
 ## [0.2.2] - 2026-09-30
 

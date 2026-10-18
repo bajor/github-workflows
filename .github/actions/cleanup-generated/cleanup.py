@@ -3,8 +3,8 @@
 import json
 import os
 from pathlib import Path, PurePosixPath
-import re
 import subprocess
+import tempfile
 
 
 def git(*args):
@@ -42,30 +42,41 @@ def raccoon_catalog():
 
 
 def main():
-    if subprocess.run(["git", "diff", "--quiet"]).returncode or subprocess.run(["git", "diff", "--cached", "--quiet"]).returncode:
-        raise ValueError("Cleanup requires a clean tracked working tree and index")
-    tracked = [os.fsdecode(path) for path in git("ls-files", "-z").split(b"\0") if path]
+    if subprocess.run(["git", "diff", "--cached", "--quiet"]).returncode:
+        raise ValueError("Cleanup requires a clean index")
+    tracked = [os.fsdecode(path) for path in git("ls-files", "-z", "--", "visual-explanations", "raccoon-artifacts").split(b"\0") if path]
     enabled = os.environ.get("DELETE_RACCOON_ARTIFACTS", "false") == "true"
     # Validate ownership before staging any deletion, including the legacy SVGs.
     catalog = raccoon_catalog() if enabled else None
+    owned = {f"pr-{item['pr']}" for item in catalog["artifacts"]} if catalog else set()
     paths = []
     for path in tracked:
         parts = PurePosixPath(path).parts
         review_svg = len(parts) > 1 and parts[0] == "visual-explanations" and path.endswith(".svg")
-        generated_pr = catalog is not None and len(parts) > 1 and parts[0] == "raccoon-artifacts" and re.fullmatch(r"pr-[1-9][0-9]*", parts[1])
+        generated_pr = len(parts) > 1 and parts[0] == "raccoon-artifacts" and parts[1] in owned
         if review_svg or generated_pr:
             paths.append(path)
-    # Batches avoid the OS argument-size limit for large copied source trees.
-    for start in range(0, len(paths), 100):
-        git("rm", "-f", "--", *paths[start:start + 100])
+    temporary = None
     if catalog is not None and catalog["artifacts"]:
+        if "raccoon-artifacts/catalog.json" not in tracked:
+            raise ValueError("Refusing to stage an untracked catalog")
+        git("diff", "--exit-code", "--", "raccoon-artifacts/catalog.json")
         catalog["artifacts"] = []
-        target = Path("raccoon-artifacts/catalog.json")
-        temporary = target.with_suffix(".tmp")
-        with temporary.open("x", encoding="utf-8") as stream:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir="raccoon-artifacts", prefix=".catalog-", delete=False) as stream:
+            temporary = Path(stream.name)
             stream.write(json.dumps(catalog, indent=2) + "\n")
-        os.replace(temporary, target)
-        git("add", "--", str(target))
+    try:
+        for path in paths:
+            print(f"Delete tracked generated path: {path!r}", flush=True)
+        if paths:
+            subprocess.run(["git", "--literal-pathspecs", "rm", "--pathspec-from-file=-", "--pathspec-file-nul"],
+                           input=b"\0".join(os.fsencode(path) for path in paths) + b"\0", check=True)
+        if temporary is not None:
+            os.replace(temporary, "raccoon-artifacts/catalog.json")
+            git("add", "--", "raccoon-artifacts/catalog.json")
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
     print(f"Removed {len(paths)} tracked generated files.")
 
 

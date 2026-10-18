@@ -50,6 +50,8 @@ class CleanupIntegrationTest(unittest.TestCase):
         self.assertTrue((self.root / "raccoon-artifacts/pr-7/files/source.txt").exists())
 
     def test_opt_in_deletes_only_owned_tracked_pr_material(self):
+        self.write("raccoon-artifacts/pr-99/not-in-catalog.txt", "preserve unlisted material\n")
+        self.commit()
         self.write("raccoon-artifacts/pr-7/personal-note.txt", "untracked, preserve\n")
         result = self.run_cleanup(True)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -57,6 +59,7 @@ class CleanupIntegrationTest(unittest.TestCase):
         self.assertTrue((self.root / "raccoon-artifacts/pr-7/personal-note.txt").exists())
         self.assertTrue((self.root / "source.py").exists())
         self.assertTrue((self.root / "raccoon-artifacts/settings.json").exists())
+        self.assertTrue((self.root / "raccoon-artifacts/pr-99/not-in-catalog.txt").exists())
         self.assertEqual(json.loads((self.root / "raccoon-artifacts/catalog.json").read_text())["artifacts"], [])
 
     def test_rejects_unowned_catalog_before_deleting_anything(self):
@@ -68,9 +71,18 @@ class CleanupIntegrationTest(unittest.TestCase):
         self.assertEqual(self.git("status", "--porcelain"), b"")
 
     def test_rejects_catalog_symlink_without_reading_its_target(self):
+        self.write("valid-catalog.json", json.dumps(self.catalog))
         target = self.root / "raccoon-artifacts/catalog.json"
         target.unlink()
-        target.symlink_to("../source.py")
+        target.symlink_to("../valid-catalog.json")
+        self.commit()
+        result = self.run_cleanup(True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.git("status", "--porcelain"), b"")
+
+    def test_rejects_symlinked_artifact_root(self):
+        self.git("mv", "raccoon-artifacts", "other-artifacts")
+        (self.root / "raccoon-artifacts").symlink_to("other-artifacts", target_is_directory=True)
         self.commit()
         result = self.run_cleanup(True)
         self.assertNotEqual(result.returncode, 0)

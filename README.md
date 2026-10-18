@@ -3,7 +3,8 @@
 ## Remove merged generated artifacts
 
 Existing callers of `delete-visual-explanation-svgs.yml` continue to remove only
-tracked SVG files under `visual-explanations/`. Raccoon cleanup is opt-in:
+tracked SVG files under `visual-explanations/`. Enable Raccoon in that same caller,
+not a second competing cleanup workflow:
 
 ```yaml
 name: Clean merged generated artifacts
@@ -18,24 +19,31 @@ jobs:
     with:
       delete-raccoon-artifacts: true
     secrets:
-      REMOVE_VISUALS_MAIN: ${{ secrets.REMOVE_VISUALS_MAIN || github.token }}
+      REMOVE_VISUALS_MAIN: ${{ secrets.REMOVE_VISUALS_MAIN }}
 ```
 
-The input deletes tracked `raccoon-artifacts/pr-N/` material, including copied
+The input deletes tracked `raccoon-artifacts/pr-N/` material listed by the catalog, including copied
 source files, manifests and diagrams. It leaves an empty `catalog.json` so the
 web reader can import an authoritative empty repository. Other files, untracked
 notes and source outside the generated directories are not removed. Catalog
 ownership and format are validated before any deletion; symlink catalogs are rejected.
 
-Use the built-in token only when `main` allows it. For a protected-main ruleset,
-create a fine-grained PAT with repository Contents read/write, add its owner to
-the ruleset bypass list, and store it as `REMOVE_VISUALS_MAIN`. Grant the caller
+Create a fine-grained PAT with repository Contents read/write. For a protected-main
+ruleset, add its owner to the ruleset bypass list. Store it as `REMOVE_VISUALS_MAIN`. Grant the caller
 `contents: write`. Do not put token values in YAML or documentation.
 
-The workflow serializes cleanups and never force-pushes. A concurrent source push
+The workflow serializes each caller and never force-pushes. A concurrent source push
 may safely reject the cleanup push; rerun the workflow if the next queued run
-does not clean it. Bot-triggered runs are allowed; a second run is a no-op rather
-than an actor-based exemption that would leave bot-merged artifacts behind.
+does not clean it. Bot-triggered runs are not excluded, but pushes made using
+`GITHUB_TOKEN` do not trigger new push workflows. Automations merging with that
+token must explicitly dispatch cleanup or use a PAT that triggers push workflows.
+A second PAT-triggered cleanup is a no-op.
+
+The format is the strict version-1 catalog owned by
+[Raccoon MCP](https://github.com/bajor/raccoon-mcp/blob/cdcf9dc/src/contract.ts).
+Unknown versions or fields fail closed. After a repository rename or transfer,
+regenerate the catalog for the new repository identity before enabling cleanup.
+Unlisted PR directories are preserved, not assumed to be generated.
 
 Deletion affects the current `main` tree, not Git history or snapshots already
 imported into a browser. GitSync must synchronize, then the reader must re-import.
