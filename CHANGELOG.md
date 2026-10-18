@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0] - 2026-10-18
+
+### Added
+
+- Opt-in Raccoon artifact cleanup with a validated, empty catalog for local web imports.
+- Real-Git integration tests for deletion scope, ownership, symlinks and idempotence.
+
+### Fixed
+
+- Allow cleanup runs triggered by bots using PATs, without an actor-based exemption.
+- Limit Raccoon deletions to catalog-listed PRs and reject symlink catalogs and roots.
+
 ## [0.2.2] - 2026-09-30
 
 ### Changed

@@ -1,0 +1,13 @@
+name: Clean generated artifacts
+description: Remove tracked review SVGs and explicitly enabled Raccoon PR material.
+inputs:
+  delete-raccoon-artifacts:
+    description: Enable cleanup of raccoon-artifacts/pr-N folders and their catalog.
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        DELETE_RACCOON_ARTIFACTS: ${{ inputs.delete-raccoon-artifacts }}
+      run: python3 "$GITHUB_ACTION_PATH/cleanup.py"
