@@ -45,6 +45,11 @@ Unknown versions or fields fail closed. After a repository rename or transfer,
 regenerate the catalog for the new repository identity before enabling cleanup.
 Unlisted PR directories are preserved, not assumed to be generated.
 
+The workflow pins its composite action to an immutable commit, so a caller pinned
+to a workflow release does not silently run cleanup code from a later `main`.
+When updating the cleanup script, commit it first, then update the workflow's
+action SHA in a second commit in the same PR.
+
 Deletion affects the current `main` tree, not Git history or snapshots already
 imported into a browser. GitSync must synchronize, then the reader must re-import.
 

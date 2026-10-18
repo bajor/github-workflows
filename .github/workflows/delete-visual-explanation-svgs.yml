@@ -29,17 +29,17 @@ jobs:
     name: Delete merged visual explanation SVGs
     if: github.ref == 'refs/heads/main'
     concurrency:
-      group: generated-artifact-cleanup-${{ github.repository }}-main
+      group: generated-artifact-cleanup-${{ github.repository }}-${{ github.workflow }}-main
       cancel-in-progress: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.REMOVE_VISUALS_MAIN || github.token }}
+          token: ${{ secrets.REMOVE_VISUALS_MAIN }}
           ref: main
 
       - name: Clean generated material
-        uses: bajor/github-workflows/.github/actions/cleanup-generated@main
+        uses: bajor/github-workflows/.github/actions/cleanup-generated@e249072b2edc0293045018d3749663afcf317e22
         with:
           delete-raccoon-artifacts: ${{ inputs.delete-raccoon-artifacts || false }}
 
