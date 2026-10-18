@@ -2,6 +2,11 @@ name: Delete Visual Explanation SVGs
 
 on:
   workflow_call:
+    inputs:
+      delete-raccoon-artifacts:
+        description: Delete merged Raccoon PR folders and empty their catalog on main.
+        type: boolean
+        default: false
     secrets:
       # Required caller setup:
       # 1. Create a fine-grained PAT owned by a GitHub user.
@@ -22,46 +27,30 @@ permissions:
 jobs:
   delete-visual-explanation-svgs:
     name: Delete merged visual explanation SVGs
-    if: github.actor != 'github-actions[bot]' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
+    concurrency:
+      group: generated-artifact-cleanup-${{ github.repository }}-main
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.REMOVE_VISUALS_MAIN }}
+          token: ${{ secrets.REMOVE_VISUALS_MAIN || github.token }}
+          ref: main
 
-      - name: Delete visual explanation SVGs
-        run: |
-          visual_explanations_dir="visual-explanations"
-
-          if [ ! -d "$visual_explanations_dir" ]; then
-            echo "No $visual_explanations_dir directory found."
-            exit 0
-          fi
-
-          mapfile -t svg_files < <(find "$visual_explanations_dir" -type f -name '*.svg' | sort)
-
-          if [ "${#svg_files[@]}" -eq 0 ]; then
-            echo "No visual explanation SVGs found."
-            exit 0
-          fi
-
-          echo "Deleting visual explanation SVGs:"
-          printf '%s\n' "${svg_files[@]}"
-          rm -f "${svg_files[@]}"
-
-          find "$visual_explanations_dir" -depth -type d -empty -delete
+      - name: Clean generated material
+        uses: bajor/github-workflows/.github/actions/cleanup-generated@main
+        with:
+          delete-raccoon-artifacts: ${{ inputs.delete-raccoon-artifacts || false }}
 
       - name: Commit deletion if needed
         run: |
-          visual_explanations_dir="visual-explanations"
-
-          if git diff --quiet -- "$visual_explanations_dir"; then
-            echo "No visual explanation SVG deletions to commit."
+          if git diff --cached --quiet; then
+            echo "No generated artifact changes to commit."
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A -- "$visual_explanations_dir"
-          git commit -m "Delete visual explanation SVGs after merge"
-          git push
+          git commit -m "Remove merged generated artifacts"
+          git push origin HEAD:main
