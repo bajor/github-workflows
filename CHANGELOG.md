@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.1] - 2026-11-10
+
+### Fixed
+
+- Match complete phone tokens instead of decimal substrings inside hashes. Add workflow-level regression fixtures for hashes, recognized phone formats and mixed lines.
+
 ## [0.3.0] - 2026-10-18
 
 ### Added
