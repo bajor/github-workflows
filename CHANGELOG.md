@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Exempt the exact GitHub SSH host `git@github.com` and integer literal
+  `2147483647` from PII scans without hiding other findings on the same line.
+
 ## [0.3.0] - 2026-10-18
 
 ### Added
